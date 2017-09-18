@@ -3,10 +3,10 @@ import hmac
 import json
 import pytz
 import base64
+import requests
 import datetime
 from collections import OrderedDict
 from urllib.parse import quote
-from urllib.request import urlopen
 
 
 def _generate_sign(secret, tosign):
@@ -42,6 +42,10 @@ class AliyunSMS:
         self._params['AccessKeyId'] = self._access_key_id
         self._params['RegionId'] = 'cn-hangzhou'
 
+    @property
+    def version(self):
+        return self.VERSION
+
     def request(self, phone_numbers, sign, template_code, template_param):
         self._params['SignatureNonce'] = uuid.uuid4().hex
         self._params['SignatureVersion'] = self.SIGNATUREVERSION
@@ -67,9 +71,11 @@ class AliyunSMS:
         sign = _generate_sign(self._access_secret + '&', tosign)
         signature = urlencode(sign)
 
-        resp = urlopen('{}{}&{}'.format(self.URL_PREFIX,
-                                        signature, params_str))
-        return json.loads(resp.read())
+        request_url = '{}{}&{}'.format(self.URL_PREFIX, signature, params_str)
+        resp = requests.get(request_url)
+        result = resp.json()
+        result['status_code'] = resp.status_code
+        return result
 
 
 if __name__ == '__main__':
@@ -78,3 +84,4 @@ if __name__ == '__main__':
                        sign='阿里云短信测试专用',
                        template_code='SMS_71390007',
                        template_param={'customer': 'test'})
+    print(resp)
