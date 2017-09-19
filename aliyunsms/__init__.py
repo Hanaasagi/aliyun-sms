@@ -1,7 +1,6 @@
 import uuid
 import hmac
 import json
-import pytz
 import base64
 import requests
 import datetime
@@ -20,11 +19,13 @@ def urlencode(url):
 
 
 def _get_utc():
-    utc_now = datetime.datetime.now(pytz.timezone('utc'))
+    utc_now = datetime.datetime.utcnow()
     return utc_now.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
 class AliyunSMS:
+
+    _instance = {}
 
     VERSION = '2017-05-25'
     SIGNATUREMETHOD = 'HMAC-SHA1'
@@ -33,7 +34,7 @@ class AliyunSMS:
     ACTION = 'SendSms'
     URL_PREFIX = 'http://dysmsapi.aliyuncs.com/?Signature='
 
-    def __init__(self, access_key_id, access_secret, regionid='cn-hangzhou'):
+    def initialize(self, access_key_id, access_secret, regionid='cn-hangzhou'):
         self._access_key_id = access_key_id
         self._access_secret = access_secret
         self._regionid = regionid
@@ -77,6 +78,15 @@ class AliyunSMS:
         result['status_code'] = resp.status_code
         return result
 
+    def __new__(cls, *args, **kwargs):
+        as_key = tuple(kwargs.values())
+        instance = cls._instance.get(as_key, None)
+        if not instance:
+            instance = super().__new__(cls)
+            instance.initialize(*args, **kwargs)
+            cls._instance[as_key] = instance
+        return instance
+
 
 if __name__ == '__main__':
     cli = AliyunSMS(access_key_id='testId', access_secret='testSecret')
@@ -85,3 +95,5 @@ if __name__ == '__main__':
                        template_code='SMS_71390007',
                        template_param={'customer': 'test'})
     print(resp)
+    assert cli is AliyunSMS(access_key_id='testId', access_secret='testSecret')
+    assert cli is not AliyunSMS(access_key_id='Id', access_secret='Secret')
